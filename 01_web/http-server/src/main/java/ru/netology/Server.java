@@ -15,8 +15,8 @@ public class Server {
 
     private final ExecutorService threadPool = Executors.newFixedThreadPool(64);
 
-    public void start() {
-        try (final var serverSocket = new ServerSocket(9999)) {
+    public void listen(int port) {
+        try (final var serverSocket = new ServerSocket(port)) {
             while (true) {
                 final var socket = serverSocket.accept();
                 processConnection(socket);
@@ -27,17 +27,17 @@ public class Server {
     }
 
     public void processConnection(Socket socket) {
-        threadPool.submit(new Handler(socket));
+        threadPool.submit(new InternalHandler(socket));
 
     }
 
-    public class Handler extends Thread {
+    private class InternalHandler extends Thread {
         private final Socket socket;
         private BufferedReader in;
         private BufferedOutputStream out;
 
 
-        public Handler(Socket socket) {
+        public InternalHandler(Socket socket) {
             this.socket = socket;
             try {
                 this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -107,5 +107,9 @@ public class Server {
                 }
             }
         }
+    }
+
+    public void addHandler(String methodName, String url, Handler handler) {
+
     }
 }
