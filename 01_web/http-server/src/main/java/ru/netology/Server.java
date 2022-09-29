@@ -7,11 +7,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Server {
     private final List<String> validPaths = List.of("/index.html", "/spring.svg", "/spring.png", "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
+    private ConcurrentMap<String, ConcurrentMap<String, Handler>> map = new ConcurrentHashMap<>();
 
     private final ExecutorService threadPool = Executors.newFixedThreadPool(64);
 
@@ -110,6 +114,12 @@ public class Server {
     }
 
     public void addHandler(String methodName, String url, Handler handler) {
+        if (map.get(methodName) == null) {
+            ConcurrentMap<String, Handler> valueMap = new ConcurrentHashMap<>();
+
+            valueMap.put(url, handler);
+            map.put(methodName, valueMap);
+        }
 
     }
 }
