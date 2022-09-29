@@ -64,6 +64,7 @@ public class Server {
 
                     final var path = parts[1];
                     if (!validPaths.contains(path)) {
+
                         out.write((
                                 "HTTP/1.1 404 Not Found\r\n" +
                                         "Content-Length: 0\r\n" +
@@ -76,6 +77,8 @@ public class Server {
 
                     final var filePath = Path.of("01_web/http-server/public" + path);
                     final var mimeType = Files.probeContentType(filePath);
+                    final var length = Files.size(filePath);
+
 
                     if (path.equals("/classic.html")) {
                         final var template = Files.readString(filePath);
@@ -83,29 +86,26 @@ public class Server {
                                 "{time}",
                                 LocalDateTime.now().toString()
                         ).getBytes();
-                        out.write((
+                        String headers = "HTTP/1.1 200 OK\r\n" +
+                                "Content-Type: " + mimeType + "\r\n" +
+                                "Content-Length: " + content.length + "\r\n" +
+                                "Connection: close\r\n" +
+                                "\r\n";
+                        Request request = new Request(parts[0], headers);
+                        map.get(request.getMethodName()).get(filePath.toString()).
+                                handle(request, new BufferedOutputStream(socket.getOutputStream()));
 
-                                "HTTP/1.1 200 OK\r\n" +
-                                        "Content-Type: " + mimeType + "\r\n" +
-                                        "Content-Length: " + content.length + "\r\n" +
-                                        "Connection: close\r\n" +
-                                        "\r\n"
-                        ).getBytes());
-                        out.write(content);
-                        out.flush();
                         continue;
                     }
+                    String headers = "HTTP/1.1 200 OK\r\n" +
+                            "Content-Type: " + mimeType + "\r\n" +
+                            "Content-Length: " + length + "\r\n" +
+                            "Connection: close\r\n" +
+                            "\r\n";
+                    Request request = new Request(parts[0], headers);
+                    map.get(request.getMethodName()).get(filePath.toString()).
+                            handle(request, new BufferedOutputStream(socket.getOutputStream()));
 
-                    final var length = Files.size(filePath);
-                    out.write((
-                            "HTTP/1.1 200 OK\r\n" +
-                                    "Content-Type: " + mimeType + "\r\n" +
-                                    "Content-Length: " + length + "\r\n" +
-                                    "Connection: close\r\n" +
-                                    "\r\n"
-                    ).getBytes());
-                    Files.copy(filePath, out);
-                    out.flush();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
