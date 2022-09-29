@@ -3,11 +3,20 @@ package ru.netology;
 public class Request {
     private String methodName;
     private String header;
-    String body;
+    private String body;
+    private String url;
 
     public Request(String methodName, String header) {
         this.methodName = methodName;
         this.header = header;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
     }
 
     public String getMethodName() {

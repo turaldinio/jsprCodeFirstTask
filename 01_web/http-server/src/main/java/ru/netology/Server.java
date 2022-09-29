@@ -64,7 +64,6 @@ public class Server {
 
                     final var path = parts[1];
                     if (!validPaths.contains(path)) {
-
                         out.write((
                                 "HTTP/1.1 404 Not Found\r\n" +
                                         "Content-Length: 0\r\n" +
@@ -103,7 +102,7 @@ public class Server {
                             "Connection: close\r\n" +
                             "\r\n";
                     Request request = new Request(parts[0], headers);
-                    map.get(request.getMethodName()).get(filePath.toString()).
+                    map.get(request.getMethodName()).get(path).
                             handle(request, new BufferedOutputStream(socket.getOutputStream()));
 
                 } catch (IOException e) {
