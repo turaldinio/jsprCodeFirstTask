@@ -14,6 +14,7 @@ public class Main {
         server.addHandler("GET", "/spring.png", (request, responseStream) -> {
             try {
                 responseStream.write(request.getHeader().getBytes());
+                responseStream.write(Files.readAllBytes(Path.of("01_web/http-server/public" + request.getUrl())));
                 responseStream.flush();
             } catch (IOException e) {
                 e.printStackTrace();

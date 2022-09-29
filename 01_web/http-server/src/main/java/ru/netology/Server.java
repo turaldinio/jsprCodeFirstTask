@@ -91,6 +91,7 @@ public class Server {
                                 "Connection: close\r\n" +
                                 "\r\n";
                         Request request = new Request(parts[0], headers);
+                        request.setUrl(parts[1]);
                         map.get(request.getMethodName()).get(filePath.toString()).
                                 handle(request, new BufferedOutputStream(socket.getOutputStream()));
 
@@ -101,9 +102,11 @@ public class Server {
                             "Content-Length: " + length + "\r\n" +
                             "Connection: close\r\n" +
                             "\r\n";
+
                     Request request = new Request(parts[0], headers);
+                    request.setUrl(parts[1]);
                     map.get(request.getMethodName()).get(path).
-                            handle(request, new BufferedOutputStream(socket.getOutputStream()));
+                            handle(request, out);
 
                 } catch (IOException e) {
                     e.printStackTrace();
