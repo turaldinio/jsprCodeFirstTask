@@ -36,6 +36,7 @@ public class Server {
         private BufferedReader in;
         private BufferedOutputStream out;
 
+
         public Handler(Socket socket) {
             this.socket = socket;
             try {
