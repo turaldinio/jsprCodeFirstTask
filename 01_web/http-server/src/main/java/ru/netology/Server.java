@@ -63,54 +63,17 @@ public class Server {
                     }
 
                     final var path = parts[1];
+                    final var filePath = Path.of("01_web/http-server/public" + path);
 
-                    if (!validPaths.contains(path)) {
-                        out.write((
-                                "HTTP/1.1 404 Not Found\r\n" +
-                                        "Content-Length: 0\r\n" +
-                                        "Connection: close\r\n" +
-                                        "\r\n"
-                        ).getBytes());
-                        out.flush();
+                    if (map.get(parts[0]).containsKey(parts[1])) {
+                        processAnAdditionalPath(filePath, parts, out);
                         continue;
                     }
-                    final var filePath = Path.of("01_web/http-server/public" + path);
-//                    final var mimeType = Files.probeContentType(filePath);
-//                    final var length = Files.size(filePath);
-
-                    formAResponse(filePath,parts,socket,out);
-
-
-
-//                    if (path.equals("/classic.html")) {
-//                        final var template = Files.readString(filePath);
-//                        final var content = template.replace(
-//                                "{time}",
-//                                LocalDateTime.now().toString()
-//                        ).getBytes();
-//                        String headers = "HTTP/1.1 200 OK\r\n" +
-//                                "Content-Type: " + mimeType + "\r\n" +
-//                                "Content-Length: " + content.length + "\r\n" +
-//                                "Connection: close\r\n" +
-//                                "\r\n";
-//                        Request request = new Request(parts[0], headers);
-//                        request.setUrl(parts[1]);
-//                        map.get(request.getMethodName()).get(filePath.toString()).
-//                                handle(request, new BufferedOutputStream(socket.getOutputStream()));
-//
-//                        continue;
-//                    }
-//                    String headers = "HTTP/1.1 200 OK\r\n" +
-//                            "Content-Type: " + mimeType + "\r\n" +
-//                            "Content-Length: " + length + "\r\n" +
-//                            "Connection: close\r\n" +
-//                            "\r\n";
-//
-//                    Request request = new Request(parts[0], headers);
-//                    request.setUrl(parts[1]);
-//                    map.get(request.getMethodName()).get(path).
-//                            handle(request, out);
-//
+                    if (!validPaths.contains(path)) {
+                        reportMissingPath(out);
+                        continue;
+                    }
+                    processAnExistingRequest(filePath, out);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -118,33 +81,13 @@ public class Server {
         }
     }
 
-    public void formAResponse(Path filePath, String parts[], Socket socket,BufferedOutputStream out) {
+    public void processAnAdditionalPath(Path filePath, String parts[], BufferedOutputStream out) {
         try {
-            final var mimeType = Files.probeContentType(filePath);
+            final String mimeType = Files.probeContentType(filePath);
             final var length = Files.size(filePath);
 
-
-            //if (path.equals("/classic.html")) {
-            if (filePath.getFileName().toString().equals("/classic.html")) {
-                final var template = Files.readString(filePath);
-                final var content = template.replace(
-                        "{time}",
-                        LocalDateTime.now().toString()
-                ).getBytes();
-                String headers = "HTTP/1.1 200 OK\r\n" +
-                        "Content-Type: " + mimeType + "\r\n" +
-                        "Content-Length: " + content.length + "\r\n" +
-                        "Connection: close\r\n" +
-                        "\r\n";
-                Request request = new Request(parts[0], headers);
-                request.setUrl(parts[1]);
-                map.get(request.getMethodName()).get(filePath.toString()).
-                        handle(request, new BufferedOutputStream(socket.getOutputStream()));
-
-            }
             String headers = "HTTP/1.1 200 OK\r\n" +
-                    "Content-Type: " + mimeType + "\r\n" +
-                    "Content-Length: " + length + "\r\n" +
+                    "Content-Type: " + "text/html" + "\r\n" +
                     "Connection: close\r\n" +
                     "\r\n";
 
@@ -152,10 +95,64 @@ public class Server {
             request.setUrl(parts[1]);
             map.get(request.getMethodName()).get(parts[1]).
                     handle(request, out);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public void processAnExistingRequest(Path filePath, BufferedOutputStream out) {
+        try {
+            final var mimeType = Files.probeContentType(filePath);
+            final var length = Files.size(filePath);
+
+            if (filePath.getFileName().toString().equals("/classic.html")) {
+                final var template = Files.readString(filePath);
+                final var content = template.replace(
+                        "{time}",
+                        LocalDateTime.now().toString()
+                ).getBytes();
+                out.write((
+
+                        "HTTP/1.1 200 OK\r\n" +
+                                "Content-Type: " + mimeType + "\r\n" +
+                                "Content-Length: " + content.length + "\r\n" +
+                                "Connection: close\r\n" +
+                                "\r\n"
+                ).getBytes());
+                out.write(content);
+                out.flush();
+                return;
+            }
+            out.write(("HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: " + mimeType + "\r\n" +
+                    "Content-Length: " + length + "\r\n" +
+                    "Connection: close\r\n" +
+                    "\r\n").getBytes());
+
+            Files.copy(filePath, out);
+            out.flush();
+
         } catch (IOException e) {
             e.printStackTrace();
         }
 
+    }
+
+    public void reportMissingPath(BufferedOutputStream out) {//обработать ошибочный URL
+        try {
+            out.write((
+                    "HTTP/1.1 404 Not Found\r\n" +
+                            "Content-Length: 0\r\n" +
+                            "Connection: close\r\n" +
+                            "\r\n"
+            ).getBytes());
+            out.flush();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void addHandler(String methodName, String url, Handler handler) {
