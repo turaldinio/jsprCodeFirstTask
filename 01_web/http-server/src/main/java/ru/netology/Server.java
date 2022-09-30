@@ -8,14 +8,17 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 public class Server {
     private final List<String> validPaths = List.of("/index.html", "/spring.svg", "/spring.png", "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
-    private ConcurrentMap<String, ConcurrentMap<String, Handler>> map = new ConcurrentHashMap<>();
+    private ConcurrentMap<String, ConcurrentMap<Handler, String>> map = new ConcurrentHashMap<>();
 
     private final ExecutorService threadPool = Executors.newFixedThreadPool(64);
 
@@ -30,9 +33,8 @@ public class Server {
         }
     }
 
-    public void processConnection(Socket socket) {
+    private void processConnection(Socket socket) {
         threadPool.submit(new InternalHandler(socket));
-
     }
 
     private class InternalHandler extends Thread {
@@ -65,8 +67,8 @@ public class Server {
                     final var path = parts[1];
                     final var filePath = Path.of("01_web/http-server/public" + path);
 
-                    if (map.get(parts[0]).containsKey(parts[1])) {
-                        processAnAdditionalPath(filePath, parts, out);
+                    if (map.get(parts[0]).containsValue(parts[1])) {
+                        processAnAdditionalPath(parts, out);
                         continue;
                     }
                     if (!validPaths.contains(path)) {
@@ -81,28 +83,24 @@ public class Server {
         }
     }
 
-    public void processAnAdditionalPath(Path filePath, String parts[], BufferedOutputStream out) {
-        try {
-            final String mimeType = Files.probeContentType(filePath);
-            final var length = Files.size(filePath);
+    private void processAnAdditionalPath(String parts[], BufferedOutputStream out) {
 
-            String headers = "HTTP/1.1 200 OK\r\n" +
-                    "Content-Type: " + "text/html" + "\r\n" +
-                    "Connection: close\r\n" +
-                    "\r\n";
+        String headers = "HTTP/1.1 200 OK\r\n" +
+                "Content-Type: " + "text/html" + "\r\n" +
+                "Connection: close\r\n" +
+                "\r\n";
 
-            Request request = new Request(parts[0], headers);
-            request.setUrl(parts[1]);
-            map.get(request.getMethodName()).get(parts[1]).
-                    handle(request, out);
+        Request request = new Request(parts[0], headers);
+        request.setUrl(parts[1]);
+        Objects.requireNonNull(map.get(request.getMethodName()).entrySet().stream().
+                filter(x -> x.getValue().equals(request.getUrl())).
+                map(Map.Entry::getKey).
+                findFirst().
+                orElse(null)).handle(request, out);
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
-
-    public void processAnExistingRequest(Path filePath, BufferedOutputStream out) {
+    private void processAnExistingRequest(Path filePath, BufferedOutputStream out) {
         try {
             final var mimeType = Files.probeContentType(filePath);
             final var length = Files.size(filePath);
@@ -140,7 +138,7 @@ public class Server {
 
     }
 
-    public void reportMissingPath(BufferedOutputStream out) {//обработать ошибочный URL
+    private void reportMissingPath(BufferedOutputStream out) {//обработать ошибочный URL
         try {
             out.write((
                     "HTTP/1.1 404 Not Found\r\n" +
@@ -157,10 +155,25 @@ public class Server {
 
     public void addHandler(String methodName, String url, Handler handler) {
         if (map.get(methodName) == null) {
-            ConcurrentMap<String, Handler> valueMap = new ConcurrentHashMap<>();
+            ConcurrentMap<Handler, String> valueMap = new ConcurrentHashMap<>();
 
-            valueMap.put(url, handler);
+            valueMap.put(handler, url);
             map.put(methodName, valueMap);
+        }
+
+    }
+
+    public void outputResponseForItsHandler(Request request, BufferedOutputStream responseStream) {
+        try {
+            responseStream.write(request.getHeader().getBytes());
+            String text = String.format("<h3>the native handler is working!</h3></br>" +
+                    "<h3>Method name %s</h3></br>" +
+                    "<h3>Request Headers: %s</h3></br>" +
+                    "<h3>Request URL %s </h3></br>", request.getMethodName(), request.getHeader(), request.getUrl());
+            responseStream.write(text.getBytes());
+            responseStream.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
     }
