@@ -63,6 +63,7 @@ public class Server {
                     }
 
                     final var path = parts[1];
+
                     if (!validPaths.contains(path)) {
                         out.write((
                                 "HTTP/1.1 404 Not Found\r\n" +
@@ -73,46 +74,88 @@ public class Server {
                         out.flush();
                         continue;
                     }
-
                     final var filePath = Path.of("01_web/http-server/public" + path);
-                    final var mimeType = Files.probeContentType(filePath);
-                    final var length = Files.size(filePath);
+//                    final var mimeType = Files.probeContentType(filePath);
+//                    final var length = Files.size(filePath);
+
+                    formAResponse(filePath,parts,socket,out);
 
 
-                    if (path.equals("/classic.html")) {
-                        final var template = Files.readString(filePath);
-                        final var content = template.replace(
-                                "{time}",
-                                LocalDateTime.now().toString()
-                        ).getBytes();
-                        String headers = "HTTP/1.1 200 OK\r\n" +
-                                "Content-Type: " + mimeType + "\r\n" +
-                                "Content-Length: " + content.length + "\r\n" +
-                                "Connection: close\r\n" +
-                                "\r\n";
-                        Request request = new Request(parts[0], headers);
-                        request.setUrl(parts[1]);
-                        map.get(request.getMethodName()).get(filePath.toString()).
-                                handle(request, new BufferedOutputStream(socket.getOutputStream()));
 
-                        continue;
-                    }
-                    String headers = "HTTP/1.1 200 OK\r\n" +
-                            "Content-Type: " + mimeType + "\r\n" +
-                            "Content-Length: " + length + "\r\n" +
-                            "Connection: close\r\n" +
-                            "\r\n";
-
-                    Request request = new Request(parts[0], headers);
-                    request.setUrl(parts[1]);
-                    map.get(request.getMethodName()).get(path).
-                            handle(request, out);
-
+//                    if (path.equals("/classic.html")) {
+//                        final var template = Files.readString(filePath);
+//                        final var content = template.replace(
+//                                "{time}",
+//                                LocalDateTime.now().toString()
+//                        ).getBytes();
+//                        String headers = "HTTP/1.1 200 OK\r\n" +
+//                                "Content-Type: " + mimeType + "\r\n" +
+//                                "Content-Length: " + content.length + "\r\n" +
+//                                "Connection: close\r\n" +
+//                                "\r\n";
+//                        Request request = new Request(parts[0], headers);
+//                        request.setUrl(parts[1]);
+//                        map.get(request.getMethodName()).get(filePath.toString()).
+//                                handle(request, new BufferedOutputStream(socket.getOutputStream()));
+//
+//                        continue;
+//                    }
+//                    String headers = "HTTP/1.1 200 OK\r\n" +
+//                            "Content-Type: " + mimeType + "\r\n" +
+//                            "Content-Length: " + length + "\r\n" +
+//                            "Connection: close\r\n" +
+//                            "\r\n";
+//
+//                    Request request = new Request(parts[0], headers);
+//                    request.setUrl(parts[1]);
+//                    map.get(request.getMethodName()).get(path).
+//                            handle(request, out);
+//
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
         }
+    }
+
+    public void formAResponse(Path filePath, String parts[], Socket socket,BufferedOutputStream out) {
+        try {
+            final var mimeType = Files.probeContentType(filePath);
+            final var length = Files.size(filePath);
+
+
+            //if (path.equals("/classic.html")) {
+            if (filePath.getFileName().toString().equals("/classic.html")) {
+                final var template = Files.readString(filePath);
+                final var content = template.replace(
+                        "{time}",
+                        LocalDateTime.now().toString()
+                ).getBytes();
+                String headers = "HTTP/1.1 200 OK\r\n" +
+                        "Content-Type: " + mimeType + "\r\n" +
+                        "Content-Length: " + content.length + "\r\n" +
+                        "Connection: close\r\n" +
+                        "\r\n";
+                Request request = new Request(parts[0], headers);
+                request.setUrl(parts[1]);
+                map.get(request.getMethodName()).get(filePath.toString()).
+                        handle(request, new BufferedOutputStream(socket.getOutputStream()));
+
+            }
+            String headers = "HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: " + mimeType + "\r\n" +
+                    "Content-Length: " + length + "\r\n" +
+                    "Connection: close\r\n" +
+                    "\r\n";
+
+            Request request = new Request(parts[0], headers);
+            request.setUrl(parts[1]);
+            map.get(request.getMethodName()).get(parts[1]).
+                    handle(request, out);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public void addHandler(String methodName, String url, Handler handler) {
