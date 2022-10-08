@@ -3,5 +3,5 @@ package ru.netology;
 import java.io.BufferedOutputStream;
 
 public interface Handler {
-     void handle(Request request, BufferedOutputStream responseStream);
+    void handle(Request request, BufferedOutputStream responseStream);
 }
