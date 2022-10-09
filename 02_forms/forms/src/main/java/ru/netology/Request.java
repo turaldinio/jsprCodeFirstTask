@@ -1,14 +1,26 @@
 package ru.netology;
 
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
+
+import java.util.ArrayList;
+import java.util.List;
+
 public class Request {
     private String methodName;
     private String header;
     private String body;
     private String url;
+    private List<NameValuePair> queryString = new ArrayList<>();
 
     public Request(String methodName, String header) {
         this.methodName = methodName;
         this.header = header;
+
+    }
+
+    public Request() {
+
     }
 
     public String getUrl() {

@@ -1,9 +1,13 @@
 package ru.netology;
 
 
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -18,8 +22,10 @@ import java.util.concurrent.Executors;
 public class Server {
     private final List<String> validPaths = List.of("/index.html", "/spring.svg", "/spring.png", "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
     private ConcurrentMap<String, ConcurrentMap<Handler, String>> map = new ConcurrentHashMap<>();
+    private InternalHandler internalHandler;
 
     private final ExecutorService threadPool = Executors.newFixedThreadPool(64);
+
 
     public void listen(int port) {
         try (final var serverSocket = new ServerSocket(port)) {
@@ -33,17 +39,22 @@ public class Server {
     }
 
     private void processConnection(Socket socket) {
-        threadPool.submit(new InternalHandler(socket));
+        this.internalHandler = new InternalHandler(socket);
+        threadPool.submit(internalHandler);
     }
 
+
     private class InternalHandler extends Thread {
-        private final Socket socket;
         private BufferedReader in;
         private BufferedOutputStream out;
+        private Request request;
+
+        public Request getRequest() {
+            return request;
+        }
 
 
         public InternalHandler(Socket socket) {
-            this.socket = socket;
             try {
                 this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 this.out = new BufferedOutputStream(socket.getOutputStream());
@@ -57,17 +68,20 @@ public class Server {
             while (true) {
                 try {
                     final String requestLine = in.readLine();
-                    final var parts = requestLine.split(" ");
+                    final var requestLineArray = requestLine.split(" ");
 
-                    if (parts.length != 3) {
+                    if (requestLineArray.length != 3) {
                         continue;
                     }
 
-                    final var path = parts[1];
+                    final var path = requestLineArray[1];
                     final var filePath = Path.of("01_web/http-server/public" + path);
 
-                    if (map.get(parts[0]).containsValue(parts[1])) {
-                        processAnAdditionalPath(parts, out);
+                    this.request = new Request();
+                    this.request.setUrl(requestLineArray[1]);
+
+                    if (map.get(requestLineArray[0]).containsValue(requestLineArray[1])) {
+                        processAnAdditionalPath(requestLineArray[0], out);
                         continue;
                     }
                     if (!validPaths.contains(path)) {
@@ -80,77 +94,94 @@ public class Server {
                 }
             }
         }
-    }
 
-    private void processAnAdditionalPath(String parts[], BufferedOutputStream out) {
-
-        String headers = "HTTP/1.1 200 OK\r\n" +
-                "Content-Type: " + "text/html" + "\r\n" +
-                "Connection: close\r\n" +
-                "\r\n";
-
-        Request request = new Request(parts[0], headers);
-        request.setUrl(parts[1]);
-        Objects.requireNonNull(map.get(request.getMethodName()).entrySet().stream().
-                filter(x -> x.getValue().equals(request.getUrl())).
-                map(Map.Entry::getKey).
-                findFirst().
-                orElse(null)).handle(request, out);
-
-    }
-
-    private void processAnExistingRequest(Path filePath, BufferedOutputStream out) {
-        try {
-            final var mimeType = Files.probeContentType(filePath);
-            final var length = Files.size(filePath);
-
-            if (filePath.getFileName().toString().equals("/classic.html")) {
-                final var template = Files.readString(filePath);
-                final var content = template.replace(
-                        "{time}",
-                        LocalDateTime.now().toString()
-                ).getBytes();
+        private void reportMissingPath(BufferedOutputStream out) {//обработать ошибочный URL
+            try {
                 out.write((
-
-                        "HTTP/1.1 200 OK\r\n" +
-                                "Content-Type: " + mimeType + "\r\n" +
-                                "Content-Length: " + content.length + "\r\n" +
+                        "HTTP/1.1 404 Not Found\r\n" +
+                                "Content-Length: 0\r\n" +
                                 "Connection: close\r\n" +
                                 "\r\n"
                 ).getBytes());
-                out.write(content);
                 out.flush();
-                return;
+
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            out.write(("HTTP/1.1 200 OK\r\n" +
-                    "Content-Type: " + mimeType + "\r\n" +
-                    "Content-Length: " + length + "\r\n" +
+        }
+
+        private String getQueryParam(String name) {
+            return URLEncodedUtils.parse(request.getUrl(), Charset.defaultCharset()).stream().
+                    filter(x -> x.getName().equals(name)).
+                    map(x -> (x.getName() + " " + x.getValue())).
+                    findFirst().
+                    orElse(null);
+        }
+
+
+        private List<NameValuePair> getQueryParams() {
+            return URLEncodedUtils.parse(request.getUrl(), Charset.defaultCharset());
+        }
+
+
+        private void processAnAdditionalPath(String methodName, BufferedOutputStream out) {
+            String headers = "HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: " + "text/html" + "\r\n" +
+                    "Content-Length: " + getText().getBytes().length + "\r\n" +
                     "Connection: close\r\n" +
-                    "\r\n").getBytes());
+                    "\r\n";
 
-            Files.copy(filePath, out);
-            out.flush();
+            request.setMethodName(methodName);
+            request.setHeader(headers);
 
-        } catch (IOException e) {
-            e.printStackTrace();
+            Objects.requireNonNull(map.get(request.getMethodName()).entrySet().stream().
+                    filter(x -> x.getValue().equals(request.getUrl())).
+                    map(Map.Entry::getKey).
+                    findFirst().
+                    orElse(null)).handle(request, out);
+
         }
 
-    }
+        private void processAnExistingRequest(Path filePath, BufferedOutputStream out) {
+            try {
+                final var mimeType = Files.probeContentType(filePath);
+                final var length = Files.size(filePath);
 
-    private void reportMissingPath(BufferedOutputStream out) {//обработать ошибочный URL
-        try {
-            out.write((
-                    "HTTP/1.1 404 Not Found\r\n" +
-                            "Content-Length: 0\r\n" +
-                            "Connection: close\r\n" +
-                            "\r\n"
-            ).getBytes());
-            out.flush();
+                if (filePath.getFileName().toString().equals("/classic.html")) {
+                    final var template = Files.readString(filePath);
+                    final var content = template.replace(
+                            "{time}",
+                            LocalDateTime.now().toString()
+                    ).getBytes();
+                    out.write((
 
-        } catch (IOException e) {
-            e.printStackTrace();
+                            "HTTP/1.1 200 OK\r\n" +
+                                    "Content-Type: " + mimeType + "\r\n" +
+                                    "Content-Length: " + content.length + "\r\n" +
+                                    "Connection: close\r\n" +
+                                    "\r\n"
+                    ).getBytes());
+                    out.write(content);
+                    out.flush();
+                    return;
+                }
+
+                out.write(("HTTP/1.1 200 OK\r\n" +
+                        "Content-Type: " + mimeType + "\r\n" +
+                        "Content-Length: " + length + "\r\n" +
+                        "Connection: close\r\n" +
+                        "\r\n").getBytes());
+
+                Files.copy(filePath, out);
+                out.flush();
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
         }
     }
+
 
     public void addHandler(String methodName, String url, Handler handler) {
         if (map.get(methodName) == null) {
@@ -165,15 +196,23 @@ public class Server {
     public void outputResponseForItsHandler(Request request, BufferedOutputStream responseStream) {
         try {
             responseStream.write(request.getHeader().getBytes());
-            String text = String.format("<h3>the native handler is working!</h3></br>" +
-                    "<h3>Method name %s</h3></br>" +
-                    "<h3>Request Headers: %s</h3></br>" +
-                    "<h3>Request URL %s </h3></br>", request.getMethodName(), request.getHeader(), request.getUrl());
-            responseStream.write(text.getBytes());
+            responseStream.write(getText().getBytes());
             responseStream.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }
 
+    }
+
+    private static String getText() {
+        return "<h3>the native handler is working!</h3></br>";
+    }
+
+    public String getQueryParam(String name) {
+        return internalHandler.getQueryParam(name);
+    }
+
+    public List<NameValuePair> getQueryParams() {
+        return internalHandler.getQueryParams();
     }
 }
