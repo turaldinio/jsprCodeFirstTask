@@ -5,26 +5,29 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
 import java.io.*;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.*;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 public class Server {
     private final List<String> validPaths = List.of("/index.html", "/spring.svg", "/spring.png", "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
     private ConcurrentMap<String, ConcurrentMap<Handler, String>> map = new ConcurrentHashMap<>();
     private InternalHandler internalHandler;
 
-    private final ExecutorService threadPool = Executors.newFixedThreadPool(64);
+    private final ExecutorService threadPool = Executors.newFixedThreadPool(64,
+            r -> {
+                Thread t = Executors.defaultThreadFactory().newThread(r);
+                t.setDaemon(true);
+                return t;
+            });
+
 
 
     public void listen(int port) {
@@ -75,12 +78,15 @@ public class Server {
                     }
 
                     final var path = requestLineArray[1];
-                    final var filePath = Path.of("01_web/http-server/public" + path);
-
                     this.request = new Request();
                     this.request.setUrl(requestLineArray[1]);
 
-                    if (!map.isEmpty()&&map.get(requestLineArray[0]).containsValue(requestLineArray[1])) {
+                    this.request.setFullPath("http://localhost:9999" + requestLineArray[1]);
+
+
+                    if (!map.isEmpty() &&
+
+                            map.get(requestLineArray[0]).containsValue(new URI(request.getFullPath()).getPath())) {
                         processAnAdditionalPath(requestLineArray[0], out);
                         continue;
                     }
@@ -88,8 +94,10 @@ public class Server {
                         reportMissingPath(out);
                         continue;
                     }
+                    final var filePath = Path.of("01_web/http-server/public" + path);
+
                     processAnExistingRequest(filePath, out);
-                } catch (IOException e) {
+                } catch (IOException | URISyntaxException e) {
                     e.printStackTrace();
                 }
             }
@@ -111,16 +119,26 @@ public class Server {
         }
 
         private String getQueryParam(String name) {
-            return URLEncodedUtils.parse(request.getUrl(), Charset.defaultCharset()).stream().
-                    filter(x -> x.getName().equals(name)).
-                    map(x -> (x.getName() + " " + x.getValue())).
-                    findFirst().
-                    orElse(null);
+            try {
+                return URLEncodedUtils.parse(new URI(request.getUrl()), Charset.defaultCharset()).stream().
+                        filter(x -> x.getName().equals(name)).
+                        map(x -> (x.getName() + " " + x.getValue())).
+                        findFirst().
+                        orElse(null);
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+            }
+            return null;
         }
 
 
         private List<NameValuePair> getQueryParams() {
-            return URLEncodedUtils.parse(request.getUrl(), Charset.defaultCharset());
+            try {
+                return URLEncodedUtils.parse(new URI(request.getFullPath()), StandardCharsets.UTF_8);
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+            }
+            return null;
         }
 
 
@@ -134,11 +152,13 @@ public class Server {
             request.setMethodName(methodName);
             request.setHeader(headers);
 
-            Objects.requireNonNull(map.get(request.getMethodName()).entrySet().stream().
-                    filter(x -> x.getValue().equals(request.getUrl())).
+            Objects.requireNonNull(map.get(request.getMethodName()))
+                    .entrySet().
+                    stream().
+                    filter(x -> request.getUrl().contains(x.getValue())).
                     map(Map.Entry::getKey).
                     findFirst().
-                    orElse(null)).handle(request, out);
+                    orElse(null).handle(request, out);
 
         }
 
@@ -209,10 +229,18 @@ public class Server {
     }
 
     public String getQueryParam(String name) {
-        return internalHandler.getQueryParam(name);
+        if (internalHandler.getRequest().getUrl().contains("?")) {
+            return internalHandler.getQueryParam(name);
+        } else {
+            return null;
+        }
     }
 
     public List<NameValuePair> getQueryParams() {
-        return internalHandler.getQueryParams();
+        if (internalHandler.getRequest().getUrl().contains("?")) {
+            return internalHandler.getQueryParams();
+        } else {
+            return null;
+        }
     }
 }

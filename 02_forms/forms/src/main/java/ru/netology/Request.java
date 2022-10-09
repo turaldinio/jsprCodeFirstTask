@@ -11,6 +11,7 @@ public class Request {
     private String header;
     private String body;
     private String url;
+    private String fullPath;
     private List<NameValuePair> queryString = new ArrayList<>();
 
     public Request(String methodName, String header) {
@@ -21,6 +22,14 @@ public class Request {
 
     public Request() {
 
+    }
+
+    public String getFullPath() {
+        return fullPath;
+    }
+
+    public void setFullPath(String fullPath) {
+        this.fullPath = fullPath;
     }
 
     public String getUrl() {
