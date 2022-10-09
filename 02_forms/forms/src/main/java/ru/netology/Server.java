@@ -80,7 +80,7 @@ public class Server {
                     this.request = new Request();
                     this.request.setUrl(requestLineArray[1]);
 
-                    if (map.get(requestLineArray[0]).containsValue(requestLineArray[1])) {
+                    if (!map.isEmpty()&&map.get(requestLineArray[0]).containsValue(requestLineArray[1])) {
                         processAnAdditionalPath(requestLineArray[0], out);
                         continue;
                     }
