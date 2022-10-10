@@ -76,29 +76,58 @@ public class Server {
                         continue;
                     }
 
-                    final var path = requestLineArray[1];
-                    this.request = new Request();
-                    this.request.setUrl(requestLineArray[1]);
+                    //      final var path = requestLineArray[1];
+                    String decodeUrl = decodingURL(requestLineArray[1]);
 
-                    this.request.setFullPath("http://localhost:9999" + requestLineArray[1]);
+                    request = new Request();
+                    request.setUrl(requestLineArray[1]);
+                    request.setMethodName(requestLineArray[0]);
+                    request.setFullPath("http://localhost:9999" + requestLineArray[1]);
+
+                    if (!decodeUrl.equals(requestLineArray[1])) {
+                        request.setUrl(decodeUrl);
+                        sendDecodeMessage();
+                        Objects.requireNonNull(getQueryParams()).forEach(x -> System.out.println(x.getName() + " " + x.getValue()));
+                        continue;
+                    }
 
 
                     if (!map.isEmpty() &&
-                            map.get(requestLineArray[0]).containsValue(new URI(request.getFullPath()).getPath())) {
+                            map.get(request.getMethodName()).containsValue(new URI(request.getFullPath()).getPath())) {
                         processAnAdditionalPath(requestLineArray[0], out);
                         continue;
                     }
-                    if (!validPaths.contains(path)) {
+                    if (!validPaths.contains(decodeUrl)) {
                         reportMissingPath(out);
                         continue;
                     }
-                    final var filePath = Path.of("01_web/http-server/public" + path);
+                    final var filePath = Path.of("01_web/http-server/public" + decodeUrl);
 
                     processAnExistingRequest(filePath, out);
                 } catch (IOException | URISyntaxException e) {
                     e.printStackTrace();
                 }
             }
+        }
+
+        private void sendDecodeMessage() {
+            String text = "<h3>open idea console</h3>";
+            String headers = "HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: " + "text/html" + "\r\n" +
+                    "Content-Length: " + text.getBytes().length + "\r\n" +
+                    "Connection: close\r\n" +
+                    "\r\n";
+            try {
+                out.write(headers.getBytes());
+                out.write(text.getBytes());
+                out.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private String decodingURL(String url) {
+            return URLDecoder.decode(url, StandardCharsets.UTF_8);
         }
 
         private void reportMissingPath(BufferedOutputStream out) {//обработать ошибочный URL
@@ -207,8 +236,9 @@ public class Server {
 
             valueMap.put(handler, url);
             map.put(methodName, valueMap);
+        } else {
+            map.get(methodName).put(handler, url);
         }
-
     }
 
     public void outputResponseForItsHandler(Request request, BufferedOutputStream responseStream) {
