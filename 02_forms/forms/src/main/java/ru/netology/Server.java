@@ -117,7 +117,6 @@ public class Server {
         private void parseQueryStringRequest() {
             sentResponseToTheBrowser();
 
-
         }
 
         private void sentResponseToTheBrowser() {

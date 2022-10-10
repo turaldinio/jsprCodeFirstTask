@@ -24,6 +24,14 @@ public class Request {
 
     }
 
+    public List<NameValuePair> getQueryString() {
+        return queryString;
+    }
+
+    public void setQueryString(List<NameValuePair> queryString) {
+        this.queryString = queryString;
+    }
+
     public String getFullPath() {
         return fullPath;
     }
