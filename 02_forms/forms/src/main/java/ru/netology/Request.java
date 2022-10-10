@@ -5,6 +5,8 @@ import org.apache.http.client.utils.URLEncodedUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 public class Request {
     private String methodName;

@@ -56,6 +56,7 @@ public class Server {
         }
 
 
+
         public InternalHandler(Socket socket) {
             try {
                 this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -117,7 +118,10 @@ public class Server {
         private void parseQueryStringRequest() {
             sentResponseToTheBrowser();
             try {
-                request.setQueryString(URLEncodedUtils.parse(new URI(request.getFullPath()), Charset.defaultCharset()));
+                synchronized (request.getQueryString()) {
+                    request.setQueryString(URLEncodedUtils.parse(new URI(request.getFullPath()), Charset.defaultCharset()));
+                    request.notifyAll();
+                }
             } catch (URISyntaxException e) {
                 e.printStackTrace();
             }
@@ -133,6 +137,7 @@ public class Server {
             try {
                 out.write(headers.getBytes());
                 out.write(responseText.getBytes());
+                out.flush();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -154,6 +159,16 @@ public class Server {
         }
 
         private String getQueryParam(String name) {
+            synchronized (request.getQueryString()) {
+                if (request.getQueryString().isEmpty()) {
+                    try {
+                        request.getQueryString().wait();
+
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
             return request.getQueryString().stream().
                     filter(x -> x.getName().
                             equals(name)).
@@ -164,6 +179,15 @@ public class Server {
 
 
         private List<NameValuePair> getQueryParams() {
+            synchronized (request.getQueryString()) {
+                if (request.getQueryString().isEmpty()) {
+                    try {
+                        request.getQueryString().wait();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
             return request.getQueryString();
         }
 
@@ -255,18 +279,11 @@ public class Server {
     }
 
     public String getQueryParam(String name) {
-        if (internalHandler.getRequest().getUrl().contains("?")) {
-            return internalHandler.getQueryParam(name);
-        } else {
-            return null;
-        }
+
+        return internalHandler.getQueryParam(name);
     }
 
     public List<NameValuePair> getQueryParams() {
-        if (internalHandler.getRequest().getUrl().contains("?")) {
-            return internalHandler.getQueryParams();
-        } else {
-            return null;
-        }
+        return internalHandler.getQueryParams();
     }
 }
