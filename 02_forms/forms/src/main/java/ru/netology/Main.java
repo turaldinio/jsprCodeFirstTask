@@ -7,12 +7,32 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 
+import java.io.BufferedOutputStream;
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 
 public class Main {
     public static void main(String[] args) {
         final var server = new Server();
         server.addHandler("GET", "/messages", server::outputResponseForItsHandler);
+
+        server.addHandler("GET", "/default-get.html", (request, responseStream) -> {
+            File file = new File("02_forms/forms/static/default-get.html");
+            request.setHeader("HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: " + "text/html" + "\r\n" +
+                    "Content-Length: " + file.length() + "\r\n" +
+                    "Connection: close\r\n" +
+                    "\r\n");
+            try {
+                responseStream.write(request.getHeader().getBytes());
+                Files.copy(file.toPath(), responseStream);
+                responseStream.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        });
 
         Thread thread = new Thread(() -> {
             server.listen(9999);
@@ -44,7 +64,7 @@ public class Main {
         System.out.println(server.getQueryParam("name"));
         System.out.println("-------------------------------");
         System.out.println("allParams:");
-        server.getQueryParams().forEach((x-> System.out.println(x.getName()+" "+x.getValue())));
+        server.getQueryParams().forEach((x -> System.out.println(x.getName() + " " + x.getValue())));
 
     }
 

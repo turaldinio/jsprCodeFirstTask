@@ -29,7 +29,6 @@ public class Server {
             });
 
 
-
     public void listen(int port) {
         try (final var serverSocket = new ServerSocket(port)) {
             while (true) {
@@ -85,7 +84,6 @@ public class Server {
 
 
                     if (!map.isEmpty() &&
-
                             map.get(requestLineArray[0]).containsValue(new URI(request.getFullPath()).getPath())) {
                         processAnAdditionalPath(requestLineArray[0], out);
                         continue;
