@@ -76,11 +76,15 @@ public class Server {
                         continue;
                     }
 
-                    this.request = new Request();
-                    this.request.setUrl(request.getUrl());
+                    request = new Request();
+                    request.setFullPath("http://localhost:9999" + requestLineArray[1]);
 
-                    this.request.setFullPath("http://localhost:9999" + requestLineArray[1]);
-
+                    if (request.getFullPath().contains("?")) {
+                        request.setUrl(decodeUrl(request.getUrl()));
+                        parseQueryStringRequest();
+                        continue;
+                    }
+                    request.setUrl(requestLineArray[1]);
 
                     if (!map.isEmpty() &&
 
@@ -111,7 +115,24 @@ public class Server {
         }
 
         private void parseQueryStringRequest() {
+            sentResponseToTheBrowser();
 
+
+        }
+
+        private void sentResponseToTheBrowser() {
+            String responseText = "<h3>open the console in the idea</h3>";
+            String headers = "HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: " + "text/html" + "\r\n" +
+                    "Content-Length: " + responseText.getBytes().length + "\r\n" +
+                    "Connection: close\r\n" +
+                    "\r\n";
+            try {
+                out.write(headers.getBytes());
+                out.write(responseText.getBytes());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         private void reportMissingPath(BufferedOutputStream out) {//обработать ошибочный URL

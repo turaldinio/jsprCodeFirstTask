@@ -41,25 +41,7 @@ public class Main {
         thread.setDaemon(true);
         thread.start();
 
-        CloseableHttpClient httpClient = HttpClientBuilder.create().
-                setUserAgent("MyTestService").
-                setDefaultRequestConfig(RequestConfig.custom().
-                        setConnectTimeout(5000).
-                        setSocketTimeout(30000).
-                        setRedirectsEnabled(false).
-                        build()).
-                build();
 
-        HttpGet request = new HttpGet("http://localhost:9999/messages?name=turaldinio&value=15");
-        request.setHeader(HttpHeaders.ACCEPT, ContentType.APPLICATION_JSON.getMimeType());
-
-
-        try {
-            httpClient.execute(request);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
         System.out.println("search for name:");
         System.out.println(server.getQueryParam("name"));
         System.out.println("-------------------------------");
