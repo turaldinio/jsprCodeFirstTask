@@ -29,7 +29,6 @@ public class Server {
             });
 
 
-
     public void listen(int port) {
         try (final var serverSocket = new ServerSocket(port)) {
             while (true) {
@@ -77,9 +76,8 @@ public class Server {
                         continue;
                     }
 
-                    final var path = requestLineArray[1];
                     this.request = new Request();
-                    this.request.setUrl(requestLineArray[1]);
+                    this.request.setUrl(request.getUrl());
 
                     this.request.setFullPath("http://localhost:9999" + requestLineArray[1]);
 
@@ -90,17 +88,30 @@ public class Server {
                         processAnAdditionalPath(requestLineArray[0], out);
                         continue;
                     }
-                    if (!validPaths.contains(path)) {
+                    if (!validPaths.contains(request.getUrl())) {
                         reportMissingPath(out);
                         continue;
                     }
-                    final var filePath = Path.of("01_web/http-server/public" + path);
+                    final var filePath = Path.of("01_web/http-server/public" + request.getUrl());
 
                     processAnExistingRequest(filePath, out);
                 } catch (IOException | URISyntaxException e) {
                     e.printStackTrace();
                 }
             }
+        }
+
+        private String decodeUrl(String url) {
+            try {
+                return URLDecoder.decode(url, StandardCharsets.UTF_8.name());
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        private void parseQueryStringRequest() {
+
         }
 
         private void reportMissingPath(BufferedOutputStream out) {//обработать ошибочный URL
