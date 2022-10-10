@@ -46,7 +46,7 @@ public class Server {
     }
 
 
-    private class InternalHandler extends Thread {
+    private class InternalHandler implements Callable<Response> {
         private BufferedReader in;
         private BufferedOutputStream out;
         private Request request;
@@ -54,7 +54,6 @@ public class Server {
         public Request getRequest() {
             return request;
         }
-
 
 
         public InternalHandler(Socket socket) {
@@ -67,7 +66,7 @@ public class Server {
         }
 
         @Override
-        public void run() {
+        public Response call() {
             while (true) {
                 try {
                     final String requestLine = in.readLine();
@@ -250,6 +249,8 @@ public class Server {
             }
 
         }
+
+
     }
 
 
