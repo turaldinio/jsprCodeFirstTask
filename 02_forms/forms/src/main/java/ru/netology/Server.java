@@ -116,7 +116,11 @@ public class Server {
 
         private void parseQueryStringRequest() {
             sentResponseToTheBrowser();
-
+            try {
+                request.setQueryString(URLEncodedUtils.parse(new URI(request.getFullPath()), Charset.defaultCharset()));
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+            }
         }
 
         private void sentResponseToTheBrowser() {
@@ -150,26 +154,17 @@ public class Server {
         }
 
         private String getQueryParam(String name) {
-            try {
-                return URLEncodedUtils.parse(new URI(request.getUrl()), Charset.defaultCharset()).stream().
-                        filter(x -> x.getName().equals(name)).
-                        map(x -> (x.getName() + " " + x.getValue())).
-                        findFirst().
-                        orElse(null);
-            } catch (URISyntaxException e) {
-                e.printStackTrace();
-            }
-            return null;
+            return request.getQueryString().stream().
+                    filter(x -> x.getName().
+                            equals(name)).
+                    map(x -> x.getName() + " " + x.getValue()).
+                    findFirst().
+                    orElse("the specified parameter is not not found");
         }
 
 
         private List<NameValuePair> getQueryParams() {
-            try {
-                return URLEncodedUtils.parse(new URI(request.getFullPath()), StandardCharsets.UTF_8);
-            } catch (URISyntaxException e) {
-                e.printStackTrace();
-            }
-            return null;
+            return request.getQueryString();
         }
 
 
