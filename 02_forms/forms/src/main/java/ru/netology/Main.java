@@ -31,13 +31,6 @@ public class Main {
 
         thread.start();
 
-
-        System.out.println("search for name:");
-        System.out.println(server.getQueryParam("name"));
-        System.out.println("-------------------------------");
-        System.out.println("allParams:");
-        server.getQueryParams().forEach((x -> System.out.println(x.getName() + " " + x.getValue())));
-
     }
 
 }
