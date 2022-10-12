@@ -3,7 +3,12 @@ package ru.netology;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -77,7 +82,20 @@ public class Request {
     public void setBody(String body) {
         this.body = body;
     }
-     public String getQueryParam(String name){
-        URLEncodedUtils.parse(new URL())
-     }
+
+    public String getQueryParam(String name) {
+        try {
+            return URLEncodedUtils.parse(new URI(fullPath), Charset.defaultCharset()).
+                    stream().
+                    filter(x -> x.getName().
+                            equals(name)).
+                    map(x -> x.getName() + " " + x.getValue()).
+                    findFirst().
+                    orElse(null);
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
 }
