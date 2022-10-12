@@ -15,7 +15,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
-
 public class Server {
     private final List<String> validPaths = List.of("/index.html", "/spring.svg", "/spring.png", "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
     private ConcurrentMap<String, ConcurrentMap<Handler, String>> map = new ConcurrentHashMap<>();
@@ -41,7 +40,7 @@ public class Server {
         private final Socket socket;
         private BufferedReader in;
         private BufferedOutputStream out;
-
+        private Request request;
 
         public InternalHandler(Socket socket) {
             this.socket = socket;
@@ -64,117 +63,126 @@ public class Server {
                         continue;
                     }
 
-                    final var path = parts[1];
-                    final var filePath = Path.of("01_web/http-server/public" + path);
+                    request = new Request();
+                    request.setMethodName(parts[0]);
+                    request.setUrl(parts[1]);
+                    request.setFullPath("http://localhost:9999" + request.getUrl());
 
-                    if (map.get(parts[0]).containsValue(parts[1])) {
-                        processAnAdditionalPath(parts, out);
+                    if (map.get(request.getMethodName()).containsValue(request.getUrl())) {
+                        processAnAdditionalPath();
                         continue;
                     }
-                    if (!validPaths.contains(path)) {
+                    if (!validPaths.contains(request.getUrl())) {
                         reportMissingPath(out);
                         continue;
                     }
+                    final var filePath = Path.of("01_web/http-server/public" + request.getUrl());
                     processAnExistingRequest(filePath, out);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
         }
-    }
 
-    private void processAnAdditionalPath(String parts[], BufferedOutputStream out) {
 
-        String headers = "HTTP/1.1 200 OK\r\n" +
-                "Content-Type: " + "text/html" + "\r\n" +
-                "Connection: close\r\n" +
-                "\r\n";
+        private void processAnAdditionalPath() {
 
-        Request request = new Request(parts[0], headers);
-        request.setUrl(parts[1]);
-        Objects.requireNonNull(map.get(request.getMethodName()).entrySet().stream().
-                filter(x -> x.getValue().equals(request.getUrl())).
-                map(Map.Entry::getKey).
-                findFirst().
-                orElse(null)).handle(request, out);
+            String headers = "HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: " + "text/html" + "\r\n" +
+                    "Content-Length: " + greetings().length() + "\r\n" +
+                    "Connection: close\r\n" +
+                    "\r\n";
 
-    }
+            request.setHeader(headers);
 
-    private void processAnExistingRequest(Path filePath, BufferedOutputStream out) {
-        try {
-            final var mimeType = Files.probeContentType(filePath);
-            final var length = Files.size(filePath);
+            Objects.requireNonNull(map.get(request.getMethodName()).entrySet().stream().
+                    filter(x -> x.getValue().contains(request.getUrl())).
+                    map(Map.Entry::getKey).
+                    findFirst().
+                    orElse(null)).handle(request, out);
 
-            if (filePath.getFileName().toString().equals("/classic.html")) {
-                final var template = Files.readString(filePath);
-                final var content = template.replace(
-                        "{time}",
-                        LocalDateTime.now().toString()
-                ).getBytes();
+        }
+
+        private void processAnExistingRequest(Path filePath, BufferedOutputStream out) {
+            try {
+                final var mimeType = Files.probeContentType(filePath);
+                final var length = Files.size(filePath);
+
+                if (filePath.getFileName().toString().equals("/classic.html")) {
+                    final var template = Files.readString(filePath);
+                    final var content = template.replace(
+                            "{time}",
+                            LocalDateTime.now().toString()
+                    ).getBytes();
+                    out.write((
+
+                            "HTTP/1.1 200 OK\r\n" +
+                                    "Content-Type: " + mimeType + "\r\n" +
+                                    "Content-Length: " + content.length + "\r\n" +
+                                    "Connection: close\r\n" +
+                                    "\r\n"
+                    ).getBytes());
+                    out.write(content);
+                    out.flush();
+                    return;
+                }
+                out.write(("HTTP/1.1 200 OK\r\n" +
+                        "Content-Type: " + mimeType + "\r\n" +
+                        "Content-Length: " + length + "\r\n" +
+                        "Connection: close\r\n" +
+                        "\r\n").getBytes());
+
+                Files.copy(filePath, out);
+                out.flush();
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }
+
+        private void reportMissingPath(BufferedOutputStream out) {//обработать ошибочный URL
+            try {
                 out.write((
-
-                        "HTTP/1.1 200 OK\r\n" +
-                                "Content-Type: " + mimeType + "\r\n" +
-                                "Content-Length: " + content.length + "\r\n" +
+                        "HTTP/1.1 404 Not Found\r\n" +
+                                "Content-Length: 0\r\n" +
                                 "Connection: close\r\n" +
                                 "\r\n"
                 ).getBytes());
-                out.write(content);
                 out.flush();
-                return;
+
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            out.write(("HTTP/1.1 200 OK\r\n" +
-                    "Content-Type: " + mimeType + "\r\n" +
-                    "Content-Length: " + length + "\r\n" +
-                    "Connection: close\r\n" +
-                    "\r\n").getBytes());
-
-            Files.copy(filePath, out);
-            out.flush();
-
-        } catch (IOException e) {
-            e.printStackTrace();
         }
 
-    }
-
-    private void reportMissingPath(BufferedOutputStream out) {//обработать ошибочный URL
-        try {
-            out.write((
-                    "HTTP/1.1 404 Not Found\r\n" +
-                            "Content-Length: 0\r\n" +
-                            "Connection: close\r\n" +
-                            "\r\n"
-            ).getBytes());
-            out.flush();
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void addHandler(String methodName, String url, Handler handler) {
-        if (map.get(methodName) == null) {
-            ConcurrentMap<Handler, String> valueMap = new ConcurrentHashMap<>();
-
-            valueMap.put(handler, url);
-            map.put(methodName, valueMap);
+        private String greetings() {
+            return "<h3>Hello, it's work</h3>";
         }
 
-    }
+        public void addHandler(String methodName, String url, Handler handler) {
+            if (map.get(methodName) == null) {
+                ConcurrentMap<Handler, String> valueMap = new ConcurrentHashMap<>();
 
-    public void outputResponseForItsHandler(Request request, BufferedOutputStream responseStream) {
-        try {
-            responseStream.write(request.getHeader().getBytes());
-            String text = String.format("<h3>the native handler is working!</h3></br>" +
-                    "<h3>Method name %s</h3></br>" +
-                    "<h3>Request Headers: %s</h3></br>" +
-                    "<h3>Request URL %s </h3></br>", request.getMethodName(), request.getHeader(), request.getUrl());
-            responseStream.write(text.getBytes());
-            responseStream.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
+                valueMap.put(handler, url);
+                map.put(methodName, valueMap);
+            }
+
         }
 
+        public void outputResponseForItsHandler(Request request, BufferedOutputStream responseStream) {
+            try {
+                responseStream.write(request.getHeader().getBytes());
+                String text = String.format("<h3>the native handler is working!</h3></br>" +
+                        "<h3>Method name %s</h3></br>" +
+                        "<h3>Request Headers: %s</h3></br>" +
+                        "<h3>Request URL %s </h3></br>", request.getMethodName(), request.getHeader(), request.getUrl());
+                responseStream.write(text.getBytes());
+                responseStream.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }
     }
 }

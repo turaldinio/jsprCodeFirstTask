@@ -20,6 +20,9 @@ public class Request {
         this.methodName = methodName;
         this.header = header;
     }
+    public Request(){
+
+    }
 
 
     public String getFullPath() {
