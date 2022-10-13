@@ -1,5 +1,7 @@
 package ru.netology;
 
+import org.apache.http.NameValuePair;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -18,6 +20,11 @@ import java.util.concurrent.Executors;
 public class Server {
     private final List<String> validPaths = List.of("/index.html", "/spring.svg", "/spring.png", "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
     private ConcurrentMap<String, ConcurrentMap<Handler, String>> map = new ConcurrentHashMap<>();
+    private Request request;
+
+    public Server() {
+        this.request = new Request();
+    }
 
     private final ExecutorService threadPool = Executors.newFixedThreadPool(64);
 
@@ -37,13 +44,11 @@ public class Server {
     }
 
     private class InternalHandler extends Thread {
-        private final Socket socket;
         private BufferedReader in;
         private BufferedOutputStream out;
-        private Request request;
+        //     private Request request;
 
         public InternalHandler(Socket socket) {
-            this.socket = socket;
             try {
                 this.in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 this.out = new BufferedOutputStream(socket.getOutputStream());
@@ -56,14 +61,14 @@ public class Server {
         public void run() {
             while (true) {
                 try {
-                    final String requestLine = in.readLine();
-                    final var parts = requestLine.split(" ");
+                    String requestLine = in.readLine();
+                    var parts = requestLine.split(" ");
 
                     if (parts.length != 3) {
                         continue;
                     }
 
-                    request = new Request();
+
                     request.setMethodName(parts[0]);
                     request.setUrl(parts[1]);
                     request.setFullPath("http://localhost:9999" + request.getUrl());
@@ -86,15 +91,6 @@ public class Server {
 
 
         private void processAnAdditionalPath() {
-
-            String headers = "HTTP/1.1 200 OK\r\n" +
-                    "Content-Type: " + "text/html" + "\r\n" +
-                    "Content-Length: " + greetings().length() + "\r\n" +
-                    "Connection: close\r\n" +
-                    "\r\n";
-
-            request.setHeader(headers);
-
             Objects.requireNonNull(map.get(request.getMethodName()).entrySet().stream().
                     filter(x -> x.getValue().contains(request.getUrl())).
                     map(Map.Entry::getKey).
@@ -105,12 +101,12 @@ public class Server {
 
         private void processAnExistingRequest(Path filePath, BufferedOutputStream out) {
             try {
-                final var mimeType = Files.probeContentType(filePath);
-                final var length = Files.size(filePath);
+                var mimeType = Files.probeContentType(filePath);
+                var length = Files.size(filePath);
 
                 if (filePath.getFileName().toString().equals("/classic.html")) {
-                    final var template = Files.readString(filePath);
-                    final var content = template.replace(
+                    var template = Files.readString(filePath);
+                    var content = template.replace(
                             "{time}",
                             LocalDateTime.now().toString()
                     ).getBytes();
@@ -155,34 +151,23 @@ public class Server {
                 e.printStackTrace();
             }
         }
+    }
 
-        private String greetings() {
-            return "<h3>Hello, it's work</h3>";
-        }
 
-        public void addHandler(String methodName, String url, Handler handler) {
-            if (map.get(methodName) == null) {
-                ConcurrentMap<Handler, String> valueMap = new ConcurrentHashMap<>();
+    public List<NameValuePair> getQueryParams() {
+        return request.getQueryParams();
+    }
 
-                valueMap.put(handler, url);
-                map.put(methodName, valueMap);
-            }
+    public String getQueryParam(String name) {
+        return request.getQueryParam(name);
+    }
 
-        }
+    public void addHandler(String methodName, String url, Handler handler) {
+        if (map.get(methodName) == null) {
+            ConcurrentMap<Handler, String> valueMap = new ConcurrentHashMap<>();
 
-        public void outputResponseForItsHandler(Request request, BufferedOutputStream responseStream) {
-            try {
-                responseStream.write(request.getHeader().getBytes());
-                String text = String.format("<h3>the native handler is working!</h3></br>" +
-                        "<h3>Method name %s</h3></br>" +
-                        "<h3>Request Headers: %s</h3></br>" +
-                        "<h3>Request URL %s </h3></br>", request.getMethodName(), request.getHeader(), request.getUrl());
-                responseStream.write(text.getBytes());
-                responseStream.flush();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
+            valueMap.put(handler, url);
+            map.put(methodName, valueMap);
         }
     }
 }

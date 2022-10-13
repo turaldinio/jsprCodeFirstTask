@@ -8,22 +8,42 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Request {
     private String methodName;
     private String header;
     private String body;
     private String url;
-    String fullPath;
+    private String fullPath;
+    private String param;
+    private CopyOnWriteArrayList<NameValuePair> paramList;
 
     public Request(String methodName, String header) {
         this.methodName = methodName;
         this.header = header;
+        this.paramList = new CopyOnWriteArrayList<>();
     }
-    public Request(){
+
+    public Request() {
 
     }
 
+    public String getParam() {
+        return param;
+    }
+
+    public void setParam(String param) {
+        this.param = param;
+    }
+
+    public CopyOnWriteArrayList<NameValuePair> getParamList() {
+        return paramList;
+    }
+
+    public void setParamList(CopyOnWriteArrayList<NameValuePair> paramList) {
+        this.paramList = paramList;
+    }
 
     public String getFullPath() {
         return fullPath;
@@ -67,6 +87,9 @@ public class Request {
     }
 
     public String getQueryParam(String name) {
+        while (fullPath == null) {
+
+        }
         try {
             return URLEncodedUtils.parse(new URI(fullPath), Charset.defaultCharset()).
                     stream().
@@ -74,7 +97,7 @@ public class Request {
                             equals(name)).
                     map(x -> x.getName() + " " + x.getValue()).
                     findFirst().
-                    orElse(null);
+                    orElse("params " + name + " is not found");
         } catch (URISyntaxException e) {
             e.printStackTrace();
         }
@@ -82,6 +105,9 @@ public class Request {
     }
 
     public List<NameValuePair> getQueryParams() {
+        while (fullPath == null) {
+
+        }
         return URLEncodedUtils.parse(fullPath, Charset.defaultCharset());
     }
 }

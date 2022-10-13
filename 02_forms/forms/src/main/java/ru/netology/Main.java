@@ -7,7 +7,31 @@ import java.nio.file.Files;
 public class Main {
     public static void main(String[] args) {
         final var server = new Server();
-        server.listen(9999);
+
+        server.addHandler("GET", "/messages", ((request, responseStream) -> {
+            String text = "<h3>its work </h3>";
+            String headers = "HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: " + "text/html" + "\r\n" +
+                    "Content-Length: " + text.length() + "\r\n" +
+                    "Connection: close\r\n" +
+                    "\r\n";
+            request.setHeader(headers);
+            try {
+                responseStream.write(headers.getBytes());
+                responseStream.write(text.getBytes());
+                responseStream.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }
+        ));
+
+        new Thread(() -> {
+            server.listen(9999);
+        }).start();
+
+        server.getQueryParams().forEach(x -> System.out.println(x.getName() + " " + x.getValue()));
 
     }
 
