@@ -5,6 +5,8 @@ import org.apache.http.NameValuePair;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -73,7 +75,8 @@ public class Server {
                     request.setUrl(parts[1]);
                     request.setFullPath("http://localhost:9999" + request.getUrl());
 
-                    if (map.get(request.getMethodName()).containsValue(request.getUrl())) {
+                    if (!map.isEmpty() &&
+                            map.get(request.getMethodName()).containsValue(new URI(request.getFullPath()).getPath())) {
                         processAnAdditionalPath();
                         continue;
                     }
@@ -83,7 +86,7 @@ public class Server {
                     }
                     final var filePath = Path.of("01_web/http-server/public" + request.getUrl());
                     processAnExistingRequest(filePath, out);
-                } catch (IOException e) {
+                } catch (IOException | URISyntaxException e) {
                     e.printStackTrace();
                 }
             }
@@ -92,7 +95,7 @@ public class Server {
 
         private void processAnAdditionalPath() {
             Objects.requireNonNull(map.get(request.getMethodName()).entrySet().stream().
-                    filter(x -> x.getValue().contains(request.getUrl())).
+                    filter(x ->request.getUrl().contains(x.getValue())).
                     map(Map.Entry::getKey).
                     findFirst().
                     orElse(null)).handle(request, out);

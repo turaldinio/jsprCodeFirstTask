@@ -26,6 +26,7 @@ public class Request {
     }
 
     public Request() {
+        this.paramList = new CopyOnWriteArrayList<>();
 
     }
 
@@ -108,6 +109,12 @@ public class Request {
         while (fullPath == null) {
 
         }
-        return URLEncodedUtils.parse(fullPath, Charset.defaultCharset());
+        try {
+            System.out.println("вышел");
+            return URLEncodedUtils.parse(new URI(fullPath), Charset.defaultCharset());
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
