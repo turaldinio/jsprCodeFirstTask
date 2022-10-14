@@ -13,22 +13,28 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 
 public class Server {
     private final List<String> validPaths = List.of("/index.html", "/spring.svg", "/spring.png", "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
     private ConcurrentMap<String, ConcurrentMap<Handler, String>> map = new ConcurrentHashMap<>();
+    private CopyOnWriteArrayList<NameValuePair> nameValuePairs = new CopyOnWriteArrayList<>();
     private final Request request;
+    private final ExecutorService threadPool = Executors.newFixedThreadPool(64);
+
 
     public Server() {
-        this.request = new Request();
+        this.request = new Request(this);
     }
 
-    private final ExecutorService threadPool = Executors.newFixedThreadPool(64);
+    public CopyOnWriteArrayList<NameValuePair> getNameValuePairs() {
+        return nameValuePairs;
+    }
+
+    public void setNameValuePairs(CopyOnWriteArrayList<NameValuePair> nameValuePairs) {
+        this.nameValuePairs = nameValuePairs;
+    }
 
     public void listen(int port) {
         try (final var serverSocket = new ServerSocket(port)) {

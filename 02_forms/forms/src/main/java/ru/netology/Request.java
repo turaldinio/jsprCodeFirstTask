@@ -18,10 +18,11 @@ public class Request {
     private String fullPath;
     private String param;
     private final CopyOnWriteArrayList<NameValuePair> paramList;
+    private Server server;
 
 
-
-    public Request() {
+    public Request(Server server) {
+        this.server = server;
         this.paramList = new CopyOnWriteArrayList<>();
 
     }
@@ -124,7 +125,4 @@ public class Request {
         return null;
     }
 
-    public boolean isUrlReading() {
-        return urlReading;
-    }
 }
