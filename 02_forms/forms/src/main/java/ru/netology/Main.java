@@ -1,8 +1,8 @@
 package ru.netology;
 
-import java.io.File;
+import ru.netology.printParam.ParamPrintImpl;
+
 import java.io.IOException;
-import java.nio.file.Files;
 
 public class Main {
     public static void main(String[] args) {
@@ -29,19 +29,10 @@ public class Main {
 
         new Thread(() -> {
             server.listen(9999);
-
-
         }).start();
 
+        ParamPrintImpl paramPrint = new ParamPrintImpl(server);
+        paramPrint.printParam();
 
-        while (true) {
-            try {
-                server.getQueue().take().
-                        getQueryParams().
-                        forEach(x -> System.out.println(x.getName() + " " + x.getValue()));
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
     }
 }

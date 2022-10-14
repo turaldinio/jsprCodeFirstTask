@@ -1,6 +1,5 @@
 package ru.netology;
 
-import org.apache.http.NameValuePair;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -51,7 +50,6 @@ public class Server {
         Future<Request> future = executorService.submit(new InternalHandler(socket));
         try {
             Request u = future.get();
-
             queue.put(u);
         } catch (InterruptedException | ExecutionException e) {
             return;
