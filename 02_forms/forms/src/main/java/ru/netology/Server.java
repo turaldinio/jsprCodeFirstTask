@@ -19,22 +19,22 @@ import java.util.concurrent.*;
 public class Server {
     private final List<String> validPaths = List.of("/index.html", "/spring.svg", "/spring.png", "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
     private ConcurrentMap<String, ConcurrentMap<Handler, String>> map = new ConcurrentHashMap<>();
-    private CopyOnWriteArrayList<NameValuePair> nameValuePairs = new CopyOnWriteArrayList<>();
     private final Request request;
-    private final ExecutorService threadPool = Executors.newFixedThreadPool(64);
+    private final ExecutorService executorService = Executors.newFixedThreadPool(64);
+    private ArrayBlockingQueue<Request> queue = new ArrayBlockingQueue<>(5);
 
+    public ArrayBlockingQueue<Request> getQueue() {
+        return queue;
+    }
+
+    public void setQueue(ArrayBlockingQueue<Request> queue) {
+        this.queue = queue;
+    }
 
     public Server() {
-        this.request = new Request(this);
+        this.request = new Request();
     }
 
-    public CopyOnWriteArrayList<NameValuePair> getNameValuePairs() {
-        return nameValuePairs;
-    }
-
-    public void setNameValuePairs(CopyOnWriteArrayList<NameValuePair> nameValuePairs) {
-        this.nameValuePairs = nameValuePairs;
-    }
 
     public void listen(int port) {
         try (final var serverSocket = new ServerSocket(port)) {
@@ -48,13 +48,20 @@ public class Server {
     }
 
     private void processConnection(Socket socket) {
-        threadPool.submit(new InternalHandler(socket));
+        Future<Request> future = executorService.submit(new InternalHandler(socket));
+        try {
+            Request u = future.get();
+
+            queue.put(u);
+        } catch (InterruptedException | ExecutionException e) {
+            return;
+        }
+
     }
 
-    private class InternalHandler extends Thread {
+    private class InternalHandler implements Callable<Request> {
         private BufferedReader in;
         private BufferedOutputStream out;
-        //     private Request request;
 
         public InternalHandler(Socket socket) {
             try {
@@ -66,38 +73,35 @@ public class Server {
         }
 
         @Override
-        public void run() {
-            while (true) {
-                try {
-                    String requestLine = in.readLine();
-                    var parts = requestLine.split(" ");
+        public Request call() {
+            try {
+                String requestLine = in.readLine();
+                var parts = requestLine.split(" ");
 
-                    if (parts.length != 3) {
-                        continue;
-                    }
-                    synchronized (request.getParamList()) {
-                        request.setMethodName(parts[0]);
-                        request.setFullPath("http://localhost:9999" + request.getUrl());
-                        request.setUrl(parts[1]);
-
-
-                        if (!map.isEmpty() &&
-                                map.get(request.getMethodName()).containsValue(new URI(request.getFullPath()).getPath())) {
-                            processAnAdditionalPath();
-                            request.getParamList().notifyAll();
-                            continue;
-                        }
-                        if (!validPaths.contains(request.getUrl())) {
-                            reportMissingPath(out);
-                            continue;
-                        }
-                        final var filePath = Path.of("01_web/http-server/public" + request.getUrl());
-                        processAnExistingRequest(filePath, out);
-                    }
-                } catch (IOException | URISyntaxException e) {
-                    e.printStackTrace();
+                if (parts.length != 3) {
+                    return null;
                 }
+                request.setUrl(parts[1]);
+                request.setMethodName(parts[0]);
+                request.setFullPath("http://localhost:9999" + request.getUrl());
+
+                if (!map.isEmpty() &&
+                        map.get(request.getMethodName()).containsValue(new URI(request.getFullPath()).getPath())) {
+                    processAnAdditionalPath();
+                    return request;
+                }
+                if (!validPaths.contains(request.getUrl())) {
+                    reportMissingPath(out);
+                    return request;
+                }
+                final var filePath = Path.of("01_web/http-server/public" + request.getUrl());
+                processAnExistingRequest(filePath, out);
+                return request;
+
+            } catch (IOException | URISyntaxException e) {
+                e.printStackTrace();
             }
+            return request;
         }
 
 
@@ -121,24 +125,27 @@ public class Server {
                             "{time}",
                             LocalDateTime.now().toString()
                     ).getBytes();
-                    out.write((
 
-                            "HTTP/1.1 200 OK\r\n" +
-                                    "Content-Type: " + mimeType + "\r\n" +
-                                    "Content-Length: " + content.length + "\r\n" +
-                                    "Connection: close\r\n" +
-                                    "\r\n"
-                    ).getBytes());
+                    String headers = "HTTP/1.1 200 OK\r\n" +
+                            "Content-Type: " + mimeType + "\r\n" +
+                            "Content-Length: " + content.length + "\r\n" +
+                            "Connection: close\r\n" +
+                            "\r\n";
+                    request.setHeader(headers);
+
+                    out.write((headers).getBytes());
                     out.write(content);
                     out.flush();
                     return;
                 }
-                out.write(("HTTP/1.1 200 OK\r\n" +
+                String headers = "HTTP/1.1 200 OK\r\n" +
                         "Content-Type: " + mimeType + "\r\n" +
                         "Content-Length: " + length + "\r\n" +
                         "Connection: close\r\n" +
-                        "\r\n").getBytes());
+                        "\r\n";
+                request.setHeader(headers);
 
+                out.write((headers).getBytes());
                 Files.copy(filePath, out);
                 out.flush();
 
@@ -149,28 +156,20 @@ public class Server {
         }
 
         private void reportMissingPath(BufferedOutputStream out) {//обработать ошибочный URL
+            String header = "HTTP/1.1 404 Not Found\r\n" +
+                    "Content-Length: 0\r\n" +
+                    "Connection: close\r\n" +
+                    "\r\n";
+
+            request.setHeader(header);
             try {
-                out.write((
-                        "HTTP/1.1 404 Not Found\r\n" +
-                                "Content-Length: 0\r\n" +
-                                "Connection: close\r\n" +
-                                "\r\n"
-                ).getBytes());
+                out.write((header).getBytes());
                 out.flush();
 
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-    }
-
-
-    public List<NameValuePair> getQueryParams() {
-        return request.getQueryParams();
-    }
-
-    public String getQueryParam(String name) {
-        return request.getQueryParam(name);
     }
 
     public void addHandler(String methodName, String url, Handler handler) {

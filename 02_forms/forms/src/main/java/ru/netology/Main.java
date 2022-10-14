@@ -6,7 +6,7 @@ import java.nio.file.Files;
 
 public class Main {
     public static void main(String[] args) {
-        final var server = new Server();
+        var server = new Server();
 
         server.addHandler("GET", "/messages", ((request, responseStream) -> {
             String text = "<h3>its work </h3>";
@@ -29,10 +29,19 @@ public class Main {
 
         new Thread(() -> {
             server.listen(9999);
+
+
         }).start();
 
-        server.getQueryParams().forEach(x -> System.out.println(x.getName() + " " + x.getValue()));
 
+        while (true) {
+            try {
+                server.getQueue().take().
+                        getQueryParams().
+                        forEach(x -> System.out.println(x.getName() + " " + x.getValue()));
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
-
 }
