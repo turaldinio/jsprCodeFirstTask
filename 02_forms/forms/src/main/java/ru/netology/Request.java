@@ -17,13 +17,9 @@ public class Request {
     private String url;
     private String fullPath;
     private String param;
-    private CopyOnWriteArrayList<NameValuePair> paramList;
+    private final CopyOnWriteArrayList<NameValuePair> paramList;
 
-    public Request(String methodName, String header) {
-        this.methodName = methodName;
-        this.header = header;
-        this.paramList = new CopyOnWriteArrayList<>();
-    }
+
 
     public Request() {
         this.paramList = new CopyOnWriteArrayList<>();
@@ -42,9 +38,6 @@ public class Request {
         return paramList;
     }
 
-    public void setParamList(CopyOnWriteArrayList<NameValuePair> paramList) {
-        this.paramList = paramList;
-    }
 
     public String getFullPath() {
         return fullPath;
@@ -88,33 +81,50 @@ public class Request {
     }
 
     public String getQueryParam(String name) {
-        while (fullPath == null) {
+        synchronized (url) {
+            if (paramList.isEmpty()) {
+                try {
+                    paramList.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            try {
+                return URLEncodedUtils.parse(new URI(fullPath), Charset.defaultCharset()).
+                        stream().
+                        filter(x -> x.getName().
+                                equals(name)).
+                        map(x -> x.getName() + " " + x.getValue()).
+                        findFirst().
+                        orElse("params " + name + " is not found");
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
 
-        }
-        try {
-            return URLEncodedUtils.parse(new URI(fullPath), Charset.defaultCharset()).
-                    stream().
-                    filter(x -> x.getName().
-                            equals(name)).
-                    map(x -> x.getName() + " " + x.getValue()).
-                    findFirst().
-                    orElse("params " + name + " is not found");
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-        }
-        return null;
     }
 
     public List<NameValuePair> getQueryParams() {
-        while (fullPath == null) {
+        synchronized (paramList) {
+            if (paramList.isEmpty()) {
+                try {
+                    paramList.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            try {
+                return URLEncodedUtils.parse(new URI(fullPath), Charset.defaultCharset());
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+            }
+        }
 
-        }
-        try {
-            System.out.println("вышел");
-            return URLEncodedUtils.parse(new URI(fullPath), Charset.defaultCharset());
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-        }
         return null;
+    }
+
+    public boolean isUrlReading() {
+        return urlReading;
     }
 }

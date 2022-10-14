@@ -22,7 +22,7 @@ import java.util.concurrent.Executors;
 public class Server {
     private final List<String> validPaths = List.of("/index.html", "/spring.svg", "/spring.png", "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
     private ConcurrentMap<String, ConcurrentMap<Handler, String>> map = new ConcurrentHashMap<>();
-    private Request request;
+    private final Request request;
 
     public Server() {
         this.request = new Request();
@@ -69,23 +69,25 @@ public class Server {
                     if (parts.length != 3) {
                         continue;
                     }
+                    synchronized (request.getParamList()) {
+                        request.setMethodName(parts[0]);
+                        request.setFullPath("http://localhost:9999" + request.getUrl());
+                        request.setUrl(parts[1]);
 
 
-                    request.setMethodName(parts[0]);
-                    request.setUrl(parts[1]);
-                    request.setFullPath("http://localhost:9999" + request.getUrl());
-
-                    if (!map.isEmpty() &&
-                            map.get(request.getMethodName()).containsValue(new URI(request.getFullPath()).getPath())) {
-                        processAnAdditionalPath();
-                        continue;
+                        if (!map.isEmpty() &&
+                                map.get(request.getMethodName()).containsValue(new URI(request.getFullPath()).getPath())) {
+                            processAnAdditionalPath();
+                            request.getParamList().notifyAll();
+                            continue;
+                        }
+                        if (!validPaths.contains(request.getUrl())) {
+                            reportMissingPath(out);
+                            continue;
+                        }
+                        final var filePath = Path.of("01_web/http-server/public" + request.getUrl());
+                        processAnExistingRequest(filePath, out);
                     }
-                    if (!validPaths.contains(request.getUrl())) {
-                        reportMissingPath(out);
-                        continue;
-                    }
-                    final var filePath = Path.of("01_web/http-server/public" + request.getUrl());
-                    processAnExistingRequest(filePath, out);
                 } catch (IOException | URISyntaxException e) {
                     e.printStackTrace();
                 }
@@ -95,7 +97,7 @@ public class Server {
 
         private void processAnAdditionalPath() {
             Objects.requireNonNull(map.get(request.getMethodName()).entrySet().stream().
-                    filter(x ->request.getUrl().contains(x.getValue())).
+                    filter(x -> request.getUrl().contains(x.getValue())).
                     map(Map.Entry::getKey).
                     findFirst().
                     orElse(null)).handle(request, out);
