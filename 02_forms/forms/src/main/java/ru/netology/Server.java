@@ -20,7 +20,7 @@ public class Server {
     private ConcurrentMap<String, ConcurrentMap<Handler, String>> map = new ConcurrentHashMap<>();
     private final Request request;
     private final ExecutorService executorService = Executors.newFixedThreadPool(64);
-    private ArrayBlockingQueue<Request> queue = new ArrayBlockingQueue<>(5);
+    private ArrayBlockingQueue<Request> queue = new ArrayBlockingQueue<>(1);
 
     public ArrayBlockingQueue<Request> getQueue() {
         return queue;

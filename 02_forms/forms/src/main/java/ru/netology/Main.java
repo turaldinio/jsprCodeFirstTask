@@ -30,9 +30,10 @@ public class Main {
         new Thread(() -> {
             server.listen(9999);
         }).start();
-
-        ParamPrintImpl paramPrint = new ParamPrintImpl(server);
-        paramPrint.printParam();
-
+        while (true) {
+            ParamPrintImpl paramPrint = new ParamPrintImpl(server);
+            paramPrint.printParam();
+            System.out.println("-----------");
+        }
     }
 }
