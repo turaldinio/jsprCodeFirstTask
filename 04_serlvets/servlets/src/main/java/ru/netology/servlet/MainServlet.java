@@ -35,7 +35,7 @@ public class MainServlet extends HttpServlet {
       }
       if (method.equals("GET") && path.matches("/api/posts/\\d+")) {
         // easy way
-        final var id = Long.parseLong(path.substring(path.lastIndexOf("/")));
+        final var id = Long.parseLong(path.substring(path.lastIndexOf("/")+1));
         controller.getById(id, resp);
         return;
       }

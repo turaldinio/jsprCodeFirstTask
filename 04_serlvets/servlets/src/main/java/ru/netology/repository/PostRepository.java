@@ -34,7 +34,7 @@ public class PostRepository {
             map.put(count.addAndGet(1), post);
             post.setId(count.get());
         } else {
-            Post mapPost = map.put((int) post.getId(), post);
+            Post mapPost = map.computeIfPresent((int) post.getId(), (key, value) ->post);
             if (mapPost == null) {
                 System.out.println("Ошибка обновления данных. ");
                 return null;
