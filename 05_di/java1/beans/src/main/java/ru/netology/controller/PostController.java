@@ -1,6 +1,7 @@
 package ru.netology.controller;
 
 import com.google.gson.Gson;
+import ru.netology.exception.NotFoundException;
 import ru.netology.model.Post;
 import ru.netology.service.PostService;
 
@@ -9,33 +10,51 @@ import java.io.IOException;
 import java.io.Reader;
 
 public class PostController {
-  public static final String APPLICATION_JSON = "application/json";
-  private final PostService service;
+    public static final String APPLICATION_JSON = "application/json";
 
-  public PostController(PostService service) {
-    this.service = service;
-  }
+    private final PostService service;
 
-  public void all(HttpServletResponse response) throws IOException {
-    response.setContentType(APPLICATION_JSON);
-    final var data = service.all();
-    final var gson = new Gson();
-    response.getWriter().print(gson.toJson(data));
-  }
+    public PostController(PostService service) {
+        this.service = service;
+    }
 
-  public void getById(long id, HttpServletResponse response) {
-    // TODO: deserialize request & serialize response
-  }
+    public void all(HttpServletResponse response) throws IOException {
+        response.setContentType(APPLICATION_JSON);
+        final var data = service.all();
+        final var gson = new Gson();
+        response.getWriter().print(gson.toJson(data));
+    }
 
-  public void save(Reader body, HttpServletResponse response) throws IOException {
-    response.setContentType(APPLICATION_JSON);
-    final var gson = new Gson();
-    final var post = gson.fromJson(body, Post.class);
-    final var data = service.save(post);
-    response.getWriter().print(gson.toJson(data));
-  }
+    public void getById(long id, HttpServletResponse response) {
+        response.setContentType(APPLICATION_JSON);
+        try {
+            response.getWriter().print(service.getById(id));
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (NotFoundException e) {
+            try {
+                response.getWriter().print(String.format("user with %d id not found", id));
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        }
 
-  public void removeById(long id, HttpServletResponse response) {
-    // TODO: deserialize request & serialize response
-  }
+    }
+
+    public void save(Reader body, HttpServletResponse response) throws IOException {
+        response.setContentType(APPLICATION_JSON);
+        final var gson = new Gson();
+        final var post = gson.fromJson(body, Post.class);
+        final var data = service.save(post);
+        response.getWriter().print(gson.toJson(data));
+    }
+
+    public void removeById(long id, HttpServletResponse response) {
+        service.removeById(id);
+        try {
+            response.getWriter().write(String.format("The user with %d id has been deleted", id));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }
