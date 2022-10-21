@@ -2,7 +2,10 @@ package ru.netology.repository;
 
 import ru.netology.model.Post;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -46,4 +49,3 @@ public class PostRepository {
         map.remove((int) id);
     }
 }
-

@@ -1,6 +1,7 @@
-package ru.netology;
+package ru.netology.servlet;
 
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
 import ru.netology.controller.PostController;
 
 import javax.servlet.http.HttpServlet;
@@ -12,24 +13,24 @@ public class MainServlet extends HttpServlet {
 
     @Override
     public void init() {
-        final var context = new AnnotationConfigApplicationContext("ru.netology");
-        controller = context.getBean(PostController.class);
+        final var factory = new DefaultListableBeanFactory();
+        final var reader = new XmlBeanDefinitionReader(factory);
+        reader.loadBeanDefinitions("beans.xml");
+        controller = factory.getBean(PostController.class);
     }
-
 
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp) {
-        // если деплоились в root context, то достаточно этого
         try {
             final var path = req.getRequestURI();
             final var method = req.getMethod();
-            // primitive routing
+
             if (method.equals("GET") && path.equals("/api/posts")) {
                 controller.all(resp);
                 return;
             }
             if (method.equals("GET") && path.matches("/api/posts/\\d+")) {
-                // easy way
+
                 final var id = searchLastSlush(path);
                 controller.getById(id, resp);
                 return;
