@@ -1,18 +1,22 @@
 package ru.netology.repository;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import ru.netology.model.Post;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class PostRepositoryStubImpl implements PostRepository {
-    private  static AtomicInteger count=new AtomicInteger(0);
-    @Autowired
-    private  ConcurrentMap<Integer, Post> map;
+    private static AtomicInteger count = new AtomicInteger(0);
 
+    private ConcurrentMap<Integer, Post> map;
+
+    public PostRepositoryStubImpl(ConcurrentMap<Integer, Post> map) {
+        this.map = map;
+    }
 
     public List<Post> all() {
         return new ArrayList<>(map.values());

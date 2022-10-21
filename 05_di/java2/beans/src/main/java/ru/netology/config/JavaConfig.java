@@ -9,14 +9,11 @@ import ru.netology.repository.PostRepositoryStubImpl;
 import ru.netology.service.PostService;
 
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Configuration
 public class JavaConfig {
     @Bean
-    // название метода - название бина
     public PostController postController() {
-        // вызов метода и есть DI
         return new PostController(postService());
     }
 
@@ -27,7 +24,7 @@ public class JavaConfig {
 
     @Bean
     public PostRepository postRepository() {
-        return new PostRepositoryStubImpl();
+        return new PostRepositoryStubImpl(concurrentHashMap());
     }
 
     @Bean
