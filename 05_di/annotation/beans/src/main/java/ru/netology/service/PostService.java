@@ -11,8 +11,7 @@ import java.util.List;
 @Service
 public class PostService {
     // сервис завязан на интерфейс, а не на конкретную реализацию
-    @Autowired
-    private final PostRepository repository;
+    final PostRepository repository;
 
     public PostService(PostRepository repository) {
         this.repository = repository;

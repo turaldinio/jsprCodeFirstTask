@@ -9,29 +9,26 @@ import ru.netology.repository.PostRepositoryStubImpl;
 import ru.netology.service.PostService;
 
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 @Configuration
 public class JavaConfig {
     @Bean
-    // аргумент метода и есть DI
-    // название метода - название бина
     public PostController postController(PostService service) {
         return new PostController(service);
     }
 
     @Bean
-    public PostService postService(PostRepository repository) {
-        return new PostService(repository);
+    public PostService postService(PostRepository postRepository) {
+        return new PostService(postRepository);
     }
 
     @Bean
-    public PostRepository postRepository(ConcurrentMap<Integer, Post> map) {
-        return new PostRepositoryStubImpl(map);
+    public PostRepository postRepository(ConcurrentHashMap<Integer, Post> concurrentHashMap) {
+        return new PostRepositoryStubImpl(concurrentHashMap);
     }
 
     @Bean
-    public ConcurrentMap<Integer, Post> concurrentMap() {
+    public ConcurrentHashMap<Integer, Post> concurrentHashMap() {
         return new ConcurrentHashMap<>();
     }
 }
