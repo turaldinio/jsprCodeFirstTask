@@ -1,15 +1,9 @@
 package ru.netology.controller;
 
-import com.google.gson.Gson;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-import ru.netology.exception.NotFoundException;
 import ru.netology.model.Post;
 import ru.netology.service.PostService;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -37,7 +31,8 @@ public class PostController {
     }
 
     @DeleteMapping("/{id}")
-    public void removeById(@PathVariable long id) {
-        service.removeById(id);
+    public String removeById(@PathVariable long id) {
+        Post post = service.removeById(id);
+        return post.getId() + " " + post.getContent() + " " + " is deleted";
     }
 }
